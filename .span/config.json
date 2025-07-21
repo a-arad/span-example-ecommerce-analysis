@@ -1,0 +1,94 @@
+{
+  "analysis": {
+    "phases": [
+      "data-profiling",
+      "exploratory-analysis",
+      "statistical-testing",
+      "report-generation"
+    ],
+    "schedule": null,
+    "segmentation": {
+      "dimensions": [
+        "product_category",
+        "region"
+      ],
+      "filters": null
+    }
+  },
+  "project": {
+    "analysis_goals": [
+      {
+        "hypothesis": "Electronics category generates the highest revenue and shows consistent growth",
+        "question": "What are the revenue trends by product category over time?",
+        "success_criteria": "Clear visualization of revenue trends with statistical significance testing"
+      },
+      {
+        "hypothesis": "North and West regions outperform others due to higher population density",
+        "question": "Which regions show the strongest performance and growth potential?",
+        "success_criteria": "Identify top 2 regions with growth rate analysis"
+      },
+      {
+        "hypothesis": "Higher discounts correlate with increased order volume but lower profit margins",
+        "question": "What is the impact of discounts on revenue and order volume?",
+        "success_criteria": "Quantify the relationship between discount rates and key metrics"
+      }
+    ],
+    "data_source": {
+      "delimiter": ",",
+      "path": "data/sales_data.csv",
+      "type": "CSV"
+    },
+    "description": "Example e-commerce sales analysis project demonstrating span's data analysis capabilities with CSV data",
+    "metrics": [
+      {
+        "calculation": "SUM(revenue)",
+        "description": "Sum of all revenue across all transactions",
+        "dimensions": [
+          "product_category",
+          "region",
+          "date"
+        ],
+        "name": "Total Revenue"
+      },
+      {
+        "calculation": "AVG(revenue)",
+        "description": "Average revenue per transaction",
+        "dimensions": [
+          "product_category",
+          "region"
+        ],
+        "name": "Average Order Value"
+      },
+      {
+        "calculation": "SUM(quantity)",
+        "description": "Total quantity of items sold",
+        "dimensions": [
+          "product_category",
+          "region"
+        ],
+        "name": "Units Sold"
+      },
+      {
+        "calculation": "AVG(discount)",
+        "description": "Average discount rate applied",
+        "dimensions": [
+          "product_category",
+          "region"
+        ],
+        "name": "Discount Impact"
+      },
+      {
+        "calculation": "COUNT(DISTINCT customer_id)",
+        "description": "Number of unique customers",
+        "dimensions": [
+          "region",
+          "date"
+        ],
+        "name": "Customer Count"
+      }
+    ],
+    "name": "span-example-ecommerce-analysis",
+    "output_format": "markdown",
+    "type": "analysis"
+  }
+}
