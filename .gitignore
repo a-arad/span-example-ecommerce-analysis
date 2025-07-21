@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.env
+.env.local
+
+# Data
+*.csv
+*.xlsx
+*.parquet
+data/cache/
+data/processed/
+data/raw/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Reports
+reports/drafts/
+*.pdf
+*.html
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Secrets
+*.pem
+*.key
+secrets/
