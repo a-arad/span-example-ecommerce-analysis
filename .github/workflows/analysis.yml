@@ -1,0 +1,202 @@
+name: Data Analysis Workflow
+on:
+  workflow_dispatch:
+    inputs:
+      analysis_phase:
+        description: 'Analysis phase to execute'
+        type: choice
+        options:
+          - 'data-profiling'
+          - 'exploratory-analysis'
+          - 'statistical-testing'
+          - 'report-generation'
+          - 'full-analysis'
+        default: 'full-analysis'
+      
+  repository_dispatch:
+    types: [analyze-data]
+
+jobs:
+  setup-environment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          
+      - name: Setup analysis directories
+        run: |
+          mkdir -p data/cache data/profiling data/processed
+          mkdir -p analysis/exploration analysis/statistical analysis/visualizations
+          mkdir -p reports/figures
+  
+  data-profiling:
+    needs: setup-environment
+    if: ${{ github.event.inputs.analysis_phase == 'data-profiling' || github.event.inputs.analysis_phase == 'full-analysis' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run Data Profiling
+        uses: anthropics/claude-code-base-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Execute data profiling phase:
+            1. Test MCP connection to data source
+            2. Profile all tables listed in the specification
+            3. Generate data quality report
+            4. Save results to data/profiling/
+            Follow the guidelines in analysis/data_profiling/CLAUDE.md
+          allowed_tools: "View,Edit,Bash(python:*),mcp__*"
+          max_turns: "25"
+          claude_env: |
+            POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+            POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+            SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+            SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+            GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+            AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      
+      - name: Upload profiling results
+        uses: actions/upload-artifact@v4
+        with:
+          name: profiling-results
+          path: data/profiling/
+  
+  exploratory-analysis:
+    needs: [setup-environment, data-profiling]
+    if: ${{ always() && (github.event.inputs.analysis_phase == 'exploratory-analysis' || github.event.inputs.analysis_phase == 'full-analysis') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download profiling results
+        uses: actions/download-artifact@v4
+        with:
+          name: profiling-results
+          path: data/profiling/
+      
+      - name: Run Exploratory Analysis
+        uses: anthropics/claude-code-base-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Execute exploratory data analysis:
+            1. Calculate all metrics defined in the specification
+            2. Create visualizations for key findings
+            3. Test hypotheses from analysis goals
+            4. Document insights in analysis/exploration/
+            Use the profiling results from data/profiling/
+          allowed_tools: "View,Edit,Bash(python:*),mcp__*"
+          max_turns: "30"
+          claude_env: |
+            POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+            POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      
+      - name: Upload analysis results
+        uses: actions/upload-artifact@v4
+        with:
+          name: analysis-results
+          path: |
+            analysis/exploration/
+            reports/figures/
+  
+  statistical-testing:
+    needs: [exploratory-analysis]
+    if: ${{ always() && (github.event.inputs.analysis_phase == 'statistical-testing' || github.event.inputs.analysis_phase == 'full-analysis') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download previous results
+        uses: actions/download-artifact@v4
+        with:
+          name: analysis-results
+          path: .
+      
+      - name: Run Statistical Tests
+        uses: anthropics/claude-code-base-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Execute statistical testing:
+            1. Run appropriate statistical tests for each hypothesis
+            2. Build predictive models if specified
+            3. Validate all findings with proper significance testing
+            4. Document results in analysis/statistical/
+          allowed_tools: "View,Edit,Bash(python:*),mcp__*"
+          max_turns: "20"
+  
+  report-generation:
+    needs: [exploratory-analysis, statistical-testing]
+    if: ${{ always() && (github.event.inputs.analysis_phase == 'report-generation' || github.event.inputs.analysis_phase == 'full-analysis') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all results
+        uses: actions/download-artifact@v4
+        with:
+          path: .
+      
+      - name: Generate Reports
+        uses: anthropics/claude-code-base-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Generate final analysis reports:
+            1. Create executive summary with key findings
+            2. Write technical report with full methodology
+            3. Include all relevant visualizations
+            4. Save reports in the specified output format
+            Use all results from previous analysis phases
+          allowed_tools: "View,Edit,Bash(python:*)"
+          max_turns: "15"
+      
+      - name: Upload final reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-reports
+          path: reports/
+      
+      - name: Create summary issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let summary = 'Analysis completed! Key findings:\n\n';
+            
+            try {
+              const execSummary = fs.readFileSync('reports/executive_summary.md', 'utf8');
+              summary += execSummary.substring(0, 500) + '...\n\n';
+            } catch (e) {
+              summary += 'Executive summary not found.\n\n';
+            }
+            
+            summary += 'Full reports available in the `reports/` directory.';
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Analysis Complete: ${new Date().toISOString().split('T')[0]}`,
+              body: summary,
+              labels: ['analysis-complete']
+            });
