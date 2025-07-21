@@ -1,0 +1,35 @@
+{
+  "mcpServers": {
+    "csv-reader": {
+      "command": "python",
+      "args": [
+        "${GITHUB_WORKSPACE}/utils/csv_mcp_server.py"
+      ],
+      "env": {
+        "CSV_DELIMITER": ",",
+        "CSV_PATH": "${GITHUB_WORKSPACE}/data/sales_data.csv"
+      }
+    },
+    "python-analysis": {
+      "command": "uv",
+      "args": [
+        "run",
+        "${GITHUB_WORKSPACE}/utils/analysis_server.py"
+      ],
+      "env": {
+        "ANALYSIS_MODE": "production",
+        "CACHE_DIR": "${GITHUB_WORKSPACE}/data/cache"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem"
+      ],
+      "env": {
+        "ALLOWED_PATHS": "${GITHUB_WORKSPACE}/data,${GITHUB_WORKSPACE}/reports,${GITHUB_WORKSPACE}/analysis"
+      }
+    }
+  }
+}
